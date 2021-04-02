@@ -1,0 +1,72 @@
+to-report neg [x]
+  report (- x)
+end
+
+to-report mul [x y]
+  report x * y
+end
+
+to-report add [x y]
+  report x + y
+end
+to-report sub [x y]
+  report x - y
+end
+
+to-report div [x y]
+  if y = 0 [report 0]
+  report x / y
+end
+
+to-report inv [x]
+  if x = 0 [report 1]
+  report 1 / x
+end
+
+to-report safe-log [x]
+  if x <= 0 [report 0]
+  report log x 10
+end
+
+to-report R 
+  report random-float-between -5 5
+end
+
+to fd-1 
+  if not wall-ahead
+  [ 
+    fd 1
+    if has-food? and not member? patch-here eaten-patches
+    [
+      set has-food? false
+      set pcolor 52
+      set eaten eaten + 1
+      set eaten-patches lput patch-here eaten-patches
+    ]
+    set steps steps + 1 
+  ]
+end
+
+to ifFoodAhead [c1 c2]
+  ifelse food-ahead
+  [run c1]
+  [run c2]
+end
+
+to turn-left
+  lt 90
+  set steps steps + 1
+end
+
+to turn-right
+  rt 90
+  set steps steps + 1
+end
+
+to-report wall-ahead
+  report patch-ahead 1 != nobody and [pcolor] of patch-ahead 1 = blue
+end
+
+to-report food-ahead
+  report patch-ahead 1 != nobody and [has-food?] of patch-ahead 1
+end

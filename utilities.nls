@@ -1,0 +1,173 @@
+to load-maze [file]
+  file-open file
+  
+  while [ not file-at-end? ]
+      [ ask patch file-read file-read [ set pcolor file-read  ] ]
+  
+  file-close
+end
+
+to-report random-between [_min _max]
+  report random (_max - _min + 1) + _min
+end
+
+to-report random-float-between [_min _max]
+  report random-float 1 * (_max - _min) + _min
+end
+
+to-report take [ls n]
+  let acc []
+  if n < 0 [report []]
+  let num ifelse-value (n >= length ls) [length ls - 1][n]
+  foreach n-values num [x -> x] [ x -> 
+    let el item x ls
+    set acc lput el acc
+  ]
+  report acc
+end
+
+to-report all-list? [ls p]
+  if empty? ls [ report true ]
+  let head first ls
+  if not (runresult p head) [ report false ]
+  report all-list? but-first ls p
+end
+
+to-report any-list? [ls p]
+  if empty? ls [ report false ]
+  let head first ls
+  if (runresult p head) [ report true ]
+  report any-list? but-first ls p
+end
+
+to-report preorder [ tree ]
+  if empty? tree [ report [] ]
+  let _node first tree
+  report fput _node map [x -> preorder x] (but-first tree)
+end
+
+to-report preorder-with-terminals [ tree grammar ]
+  if empty? tree [ report [] ]
+  let _node first tree
+  let val (ifelse-value not table:has-key? grammar _node [_node][[]])
+  let result sentence val map [x -> preorder-with-terminals x grammar] (but-first tree)
+  report ifelse-value (is-list? first result and length result <= 1) [flatten-1 result][result]
+end
+
+to-report preorder-only-terminals [tree terminals]
+  if empty? tree [ report [] ]
+  let _node first tree
+  let val (ifelse-value member? _node terminals [_node][[]])
+  let result sentence val map [x -> preorder-only-terminals x terminals] (but-first tree)
+  report ifelse-value (is-list? first result and length result <= 1) [flatten-1 result][result]
+end
+
+to-report take-while [ls p]
+  if empty? ls [ report [] ]
+  let head first ls
+  ifelse (runresult p head) 
+  [report fput head (take-while but-first ls p)]
+  [report []]
+end
+
+to-report pick-1 [ arr ]
+  report item (random length arr) arr
+end
+
+to-report flatten [ ls ]
+  
+  let acc []
+  
+  foreach ls [x -> 
+    
+    ifelse is-list? x 
+    [set acc sentence acc flatten x]
+    [set acc lput x acc]
+  ]
+  report acc  
+  
+end
+
+to-report flatten-1 [ ls ]
+  report sentence-map [x -> x] ls
+end
+
+to-report filter-by-indices [ xs indices ]
+  let acc []
+  foreach indices [index -> 
+    
+    if index >= 0 and index < length xs 
+    [
+      set acc lput (item index xs) acc
+    ]
+  ]
+  report acc
+end
+
+to-report join [sep xs]
+  if empty? xs [report sep]
+  report reduce [[x y] -> (word x sep y)] xs
+end
+
+to-report sentence-map [f xs]
+  if empty? xs [ report [] ] 
+  report reduce sentence map f xs
+end
+
+to-report combine-2 [ xs values ]
+  set values ifelse-value empty? values [(list [])][values]
+  report sentence-map [v -> map [y -> (sentence y v)] values] xs
+end
+
+to-report combine-lists [ values acc ]
+  if length values = 0 [report acc]
+  let vals first values 
+  report combine-lists (but-first values) combine-2 vals acc
+end
+
+to-report nest [ xs ]
+  if empty? xs [ report [] ]
+  if empty? but-first xs [ report xs ]
+  let head first xs 
+  report fput head (list nest (but-first xs))
+end
+
+to-report str-to-list [str]
+  let res []
+  foreach range length str [i -> 
+    let c item i str
+    set res lput c res
+  ]
+  report res
+end
+
+to-report split [xs key]
+  let result [[]]
+  if is-string? xs 
+  [set xs str-to-list xs]
+  foreach xs [ x -> 
+    if x = key 
+    [set result lput [] result]
+    let target last result
+    if x != key
+    [set target lput x target]
+    set result replace-item (length result - 1) result target
+  ]
+  
+  report result
+end
+
+to-report split-by [ xs key ]
+  let result [[]]
+  if is-string? xs 
+  [set xs str-to-list xs]
+  foreach xs [ x -> 
+    if x = key 
+    [set result lput [] result]
+    let target last result
+    set target lput x target
+    set result replace-item (length result - 1) result target
+  ]
+  
+  report result
+end

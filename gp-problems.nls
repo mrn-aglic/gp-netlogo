@@ -1,0 +1,164 @@
+globals [
+  simreg
+  qsimreg
+  santa-fe
+  food-goal
+  max-steps
+]
+
+to setup-gp-problems
+  set qsimreg "quartic symbolic regression"
+  set simreg "symbolic regression"
+  set santa-fe "santa fe ant trail"
+end
+
+to-report symbolic-reg [x]
+  report x ^ 4 + x ^ 3 + x ^ 2 + x + 1
+end
+
+to-report get-score
+  let s 0
+  if problem = qsimreg
+  [
+    set s (per-point-diff get-points)
+    report (list (1 / s) s)
+  ]
+  if problem = santa-fe
+  [
+    set s get-score-santa-fe
+    report (list s s)
+  ]
+  
+  report []
+end
+
+to-report per-point-diff [points]
+  let a 0
+ 
+  carefully [
+    let _code runresult (word "[x -> " code " ]")
+    set a (sum map [p -> abs ((runresult _code p) - (symbolic-reg p))] points) / length points
+  ][
+    set a 10000
+  ]
+  
+  report a
+end
+
+to-report get-points 
+  report n-values 21 [x -> (precision (x / 10 - 1) 2) ]
+end
+
+to-report mse [points]
+  let _code runresult (word "[x -> " code " ]")
+  let _sum 0
+  foreach points [point -> 
+    let target symbolic-reg point
+    let p (runresult _code point) 
+    let err (p - target) ^ 2
+    set _sum _sum + err
+  ]
+  report (sqrt _sum) / length points
+end
+
+to-report rrse [points]
+  let _code runresult (word "[x -> " code " ]")
+  let _sum 0
+  let t 0
+  foreach points [point ->
+    let target symbolic-reg point
+    set t t + target
+  ]
+  set t t / (length points)
+  
+  let sum2 0
+  carefully [
+    foreach points [point -> 
+      let target symbolic-reg point
+      let err ((runresult _code point) - target) ^ 2
+      set _sum _sum + err
+      set sum2 sum2 + (target - t) ^ 2
+    ]
+  ][
+    set sum2 1
+    set _sum 99999
+  ]
+  report sqrt (_sum / sum2)
+end
+
+to-report get-score-santa-fe
+  report eaten
+end
+
+to setup-santa-fe-trail
+
+  set max-steps 100
+  set food-goal 89
+  
+  ask patches 
+  [
+    set pcolor 32 
+    set has-food? false 
+    set has-gap? false
+  ] 
+
+  let sft ""
+  
+  set sft word sft ".111............................\n"
+  set sft word sft "...1............................\n"
+  set sft word sft "...1....................011100..\n"
+  set sft word sft "...1....................1....1..\n"
+  set sft word sft "...1....................1....1..\n"
+  set sft word sft "...1111011111.......01100....0..\n"
+  set sft word sft "............1.......0........1..\n"
+  set sft word sft "............1.......1........0..\n"
+  set sft word sft "............1.......1........0..\n"
+  set sft word sft "............1.......1........1..\n"
+  set sft word sft "............0.......1........0..\n"
+  set sft word sft "............1.......0........0..\n"
+  set sft word sft "............1.......0........1..\n"
+  set sft word sft "............1.......1........0..\n"
+  set sft word sft "............1.......1..0001110..\n"
+  set sft word sft "............0...01000..1........\n"
+  set sft word sft "............0...0......0........\n"
+  set sft word sft "............1...0......0........\n"
+  set sft word sft "............1...1......01000....\n"
+  set sft word sft "............1...1..........1....\n"
+  set sft word sft "............1...1..........0....\n"
+  set sft word sft "............1...1..........0....\n"
+  set sft word sft "............1...0......00010....\n"
+  set sft word sft "............1...0......1........\n"
+  set sft word sft ".001100111110...1...............\n"
+  set sft word sft ".1..............1...............\n"
+  set sft word sft ".1..............1...............\n"
+  set sft word sft ".1.....0111111100...............\n"
+  set sft word sft ".1.....1........................\n"
+  set sft word sft ".0.....1........................\n"
+  set sft word sft ".0111100........................\n"
+  set sft word sft "................................\n"
+  
+  let lines split sft "\n"
+  
+  let y max-pxcor
+  foreach lines [line ->
+    let cols (range length line)
+    foreach cols [x -> 
+      
+      let char item x line
+      if char = "1" [ask patch (x + min-pxcor) y [add-food]]
+      if char = "0" [ask patch (x + min-pxcor) y [add-gap]]
+    ]
+    set y y - 1
+  ]
+  
+end
+
+to add-food
+  set pcolor 54 
+  set has-food? true
+end
+
+to add-gap
+  set pcolor 34
+  set has-gap? true
+end

@@ -1,0 +1,151 @@
+globals [formatters]
+extensions[table]
+
+to-report rule-name [ rule ]
+  report first rule
+end
+
+to-report rule-args [ rule ]
+  report item 1 rule
+end
+
+to-report rule-type [ rule ]
+  report item 2 rule
+end
+
+to-report rule-format [ rule ]
+  ifelse length rule < 4 
+  [report "prefix"]
+  [report item 3 rule]
+end
+
+to-report get-rule [ grammar name ]
+  report first filter [ x -> name = rule-name x ] grammar
+end
+
+to-report prefix [ name args ]
+  report (word "(" name " " join " " args ")")
+end
+
+to-report infix [ name args ]
+  report (word "(" first args " " name " " join " " but-first args ")")
+end
+
+to-report block [ name args ]
+  report (word "[ " join " " args " ]")
+end
+
+to-report blockln [ name args ]
+  report (word "[\n" join "\n" args "\n]")
+end
+
+to-report trans [ name args ]
+  report join " " args
+end
+
+to-report transln [ name args ]
+  report join "\n" args
+end
+
+to-report run-format [ format name args ]
+  report (runresult (get-formatter format) name args)
+end
+
+to-report compile [ source ]
+  report runresult [-> source ]
+end
+
+to-report get-formatter [ proc-name ]
+  if formatters = 0 
+  [set formatters table:make]
+  if not table:has-key? formatters proc-name 
+  [table:put formatters proc-name compile (word "[[x y] -> " proc-name " x y]")]
+  report runresult table:get formatters proc-name
+end
+
+to-report ast-to-code [ grammar tree ]
+  ifelse is-list? tree
+  [
+    let children map [ x -> ast-to-code grammar x] tree
+    
+    if is-number? first children [report first children]
+    let rule get-rule grammar first children
+    report run-format (rule-format rule) (first children) (but-first children)
+  ] 
+  [report tree]
+end
+
+to-report get-santa-fe-min-productions
+  let min-prods table:make
+
+  table:put min-prods "command" 1
+  table:put min-prods "command-block" 2
+  table:put min-prods "prog2" 1
+  table:put min-prods "prog3" 1
+  table:put min-prods "progb" 1
+  table:put min-prods "ifelse" 3
+
+  foreach get-santa-fe-grammar [prod ->
+
+    let prods item 1 prod
+    if empty? prods
+    [
+      let head first prod
+      table:put min-prods head 0
+    ]
+  ]
+  report min-prods
+end
+
+to-report get-symreg-min-productions
+  let min-prods table:make
+  table:put min-prods "exprs" 2
+  table:put min-prods "expr" 1
+  table:put min-prods "add" 1
+  table:put min-prods "sub" 1
+  table:put min-prods "mul" 1
+  table:put min-prods "div" 1
+  table:put min-prods "sin" 1
+  table:put min-prods "cos" 1
+  table:put min-prods "exp" 1
+  table:put min-prods "neg" 1
+  table:put min-prods "inv" 1
+  table:put min-prods "safe-log" 1
+  table:put min-prods "x" 0
+  ;table:put min-prods "R" 0
+  table:put min-prods "1.0" 0
+  report min-prods
+end
+
+to-report get-symreg-grammar
+  report [
+    ["add" ["expr" "expr"] "expr"]
+    ["sub" ["expr" "expr"] "expr"]
+    ["mul" ["expr" "expr"] "expr"]
+    ["div" ["expr" "expr"] "expr"]
+    ["sin" ["expr"] "expr"]
+    ["cos" ["expr"] "expr"]
+    ["exp" ["expr"] "expr"]
+    ["inv" ["expr"] "expr"]
+    ["neg" ["expr"] "expr"]
+    ["safe-log" ["expr"] "expr"]
+    ["x" [] "expr"]
+    ;["R" [] "expr"]
+    ["1.0" [] "expr"]
+  ]
+end
+
+to-report get-santa-fe-grammar
+   report [
+    ["prog2" ["command" "command"] "command" "transln"]
+    ["prog3" ["command" "command" "command"] "command" "transln"]
+    ["command-block" ["command"] "command-block" "blockln"]
+    ["ifelse" ["boolr" "command-block" "command-block"] "command"]
+    ;["ifFoodAhead" ["command-block" "command-block"] "command"]
+    ["progb" ["boolr"] "boolr"]
+    ["food-ahead" [] "boolr"]
+    ["turn-right" [] "command"]
+    ["turn-left" [] "command"]
+    ["forward-1" [] "command"]
+  ]
+end

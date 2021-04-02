@@ -1,0 +1,36 @@
+to-report get-max-depth [tree depth]
+  if empty? tree [ report depth ]
+  let rest but-first tree
+  if empty? rest [ report depth ]
+  report max map [x -> get-max-depth x (depth + 1)] rest
+end
+
+to-report combine [main subtree]
+  if empty? main [report subtree]
+  let head first main
+  report fput head map [x -> combine x subtree] (but-first main)
+end
+
+to-report select-parents [turtleset num]
+  report map[-> tournament-selection turtleset 3] n-values num [x -> x]
+end
+
+to-report tournament-selection [turtleset _size]
+  report max-one-of (n-of _size turtleset) [fitness]
+end
+
+to-report roulette-selection
+  let s 0
+  
+  let fitness-sum sum [fitness] of gpturtles
+  
+  let rnd (random-float 1) 
+  
+  foreach [self] of gpturtles [x -> 
+    let f [fitness] of x
+    set s s + (f / fitness-sum)
+    if rnd < s [ask x [ set acc-ratio acc-ratio + 1]report x]  
+  ]
+  
+  report nobody
+end

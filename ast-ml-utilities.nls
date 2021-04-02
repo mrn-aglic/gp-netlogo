@@ -1,0 +1,148 @@
+__includes["ml-utilities.nls"]
+globals [grow-ratio]
+
+to-report grow-condition [min-depth height depth]
+  report height = depth or (min-depth <= depth and random-float 1.0 < grow-ratio)
+end
+
+to-report full-condition [height depth]
+  report height = depth
+end
+
+to-report create-random-tree-h [return-type height depth p]
+  
+  let candidates filter [x -> rule-type x = return-type and table:get min-productions (rule-name x) <= (height - depth)] gp-grammar
+  let take-terminal? (runresult p depth)
+  let remaining ifelse-value (take-terminal?) [filter [x -> empty? rule-args x] candidates][filter [x -> not empty? rule-args x] candidates]
+  
+  if take-terminal? and empty? remaining
+  [set remaining candidates]
+  
+  if empty? remaining
+  [
+    show return-type
+    show candidates
+  ]
+  let choice one-of remaining
+  
+  if rule-name choice = "R" [set choice replace-item 0 choice random-float-between -5 5]
+  
+  report fput (rule-name choice) filter [x -> not empty? x] (map [arg -> create-random-tree-h arg height (depth + 1) p] rule-args choice)
+end
+
+to-report create-random-tree [return-type min-depth max-depth]
+  let prob random 2 = 1
+  let height random-between min-depth max-depth
+  let p [x -> grow-condition min-depth height x]
+  if prob [set p [x -> full-condition height x]]
+  report create-random-tree-h return-type height 0 p
+end
+
+to-report create-random-tree-force-grow [return-type min-depth max-depth]
+  let height random-between min-depth max-depth
+  let p [x -> grow-condition min-depth height x]
+  report create-random-tree-h return-type height 0 p
+end
+
+to-report mutate-ast [tree max-tree-d]
+  let flat-tree flatten tree
+  let choices flat-tree ;but-first filter [x -> member? x nonterminals] flat-tree
+  let choice random length choices
+  let node item choice choices
+  let genome get-subtree tree choice "" 0
+  let remaining-depth last genome
+  let max-mutation-depth (max-tree-d - (remaining-depth + 1))
+  let return-type ifelse-value (is-number? node) ["expr"] [rule-type one-of filter [x -> rule-name x = node] gp-grammar]
+  let mutated create-random-tree-force-grow return-type 0 max-mutation-depth
+  report combine (first genome) mutated
+end
+
+;; depth is the remaining depth after the chosen node and its descendants have been removed
+;; if chosen node is at depth 4, the result for depth will be 3
+to-report get-subtree-h [tree choice acc-pair node depth]
+  let counter last acc-pair
+  let head first tree
+  let acc first acc-pair
+  
+  if empty? but-first tree 
+  [
+    if counter = choice [ report (list [] (list head) depth counter) ]
+    report (list (list head) [] depth counter)
+  ] 
+  
+  if (counter = choice) [report (list [] tree depth counter)]
+  
+  let new-acc []
+  let leftover []
+  let head-added? false
+  
+  foreach but-first tree [branch -> 
+    set counter counter + 1
+    let br get-subtree-h branch choice (list acc counter) node (depth + 1)
+    set counter last br
+    set new-acc sentence new-acc ifelse-value head-added? [(list first br)][(list head first br)]
+    
+    if not empty? br and not empty? item 1 br 
+    [
+      set leftover item 1 br
+      set depth item 2 br
+    ]
+    set head-added? true   
+  ]
+  report (list new-acc leftover depth counter)
+end
+
+to-report get-subtree [tree choice node depth]
+  report but-last get-subtree-h tree choice (list [] 0) node depth 
+end
+
+to-report crossover-ast [tree1 tree2 nonterminals]
+  let tree []
+  
+  let flat-tree1 flatten tree1
+  ;;                                           if function node is only function node, then it is root. We do not wish to take root
+  let nonterminals-1? random-float 1 < 0.9 and length flat-tree1 > 1 ;and length (filter [x -> member? x nonterminals] flat-tree1) > 1 
+  ;set nonterminals-1? false
+  
+  let allowed map [x -> nonterminals-1? xor not member? x nonterminals] flat-tree1
+  
+  let indices []
+  let i 0
+  foreach allowed [x ->
+    if x [ set indices lput i indices ]
+    set i i + 1
+  ]
+  ;set indices ifelse-value nonterminals-1? [but-first indices][indices]
+  
+  let choice-1 one-of indices
+
+  let genome-1 get-subtree tree1 choice-1 "" 0 
+  let node-1 item choice-1 flat-tree1
+  
+  let node1-type ifelse-value (is-number? node-1) ["expr"] [rule-type get-rule gp-grammar node-1]
+  let nodes table:get type-to-nodes node1-type
+  
+  let flat-tree2 flatten tree2
+  let remaining map [x -> ifelse-value (is-number? x)["expr"][rule-type get-rule gp-grammar x] = node1-type] flat-tree2
+ 
+  let indices2 []
+  let j 0
+  foreach remaining [x ->
+    if x [ set indices2 lput j indices2 ]
+    set j j + 1
+  ]
+  
+  if empty? indices2 [report (list (list [] 99999) (list [] 99999))] 
+  let choice-2 one-of indices2
+  
+  let genome-2 get-subtree tree2 choice-2 node-1 0 
+  ;show genome-1
+  ;show genome-2
+  let new-tree1 combine (first genome-1) (item 1 genome-2)
+  let new-tree2 combine (first genome-2) (item 1 genome-1)
+  
+  let d1 get-max-depth new-tree1 0
+  let d2 get-max-depth new-tree2 0
+  ;report []
+  report (list (list new-tree1 d1) (list new-tree2 d2))
+end
